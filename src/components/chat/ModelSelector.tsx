@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -12,7 +13,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { fetchModels, updateChat } from '@/features/chats/chatsSlice';
 import { cn } from '@/lib/utils';
 
-const FEATURED_MODELS = [
+const FEATURED_MODEL_IDS = [
   'openai/gpt-4o-mini',
   'openai/gpt-4o',
   'anthropic/claude-3.5-sonnet',
@@ -26,19 +27,20 @@ export default function ModelSelector() {
   const { activeChat, models } = useAppSelector((s) => s.chats);
 
   useEffect(() => {
-    if (models.length === 0) {
-      dispatch(fetchModels());
-    }
+    if (models.length === 0) dispatch(fetchModels());
   }, [dispatch, models.length]);
 
   if (!activeChat) return null;
 
   const currentModelId = activeChat.model;
   const currentModel = models.find((m) => m.id === currentModelId);
-  const displayName = currentModel?.name ?? currentModelId.split('/').pop() ?? currentModelId;
+  const displayName =
+    currentModel?.name ?? currentModelId.split('/').pop() ?? currentModelId;
 
-  const featuredModels = models.filter((m) => FEATURED_MODELS.includes(m.id));
-  const otherModels = models.filter((m) => !FEATURED_MODELS.includes(m.id)).slice(0, 20);
+  const featuredModels = models.filter((m) => FEATURED_MODEL_IDS.includes(m.id));
+  const otherModels = models
+    .filter((m) => !FEATURED_MODEL_IDS.includes(m.id))
+    .slice(0, 20);
 
   const handleSelect = (modelId: string) => {
     dispatch(updateChat({ chatId: activeChat.id, model: modelId }));
@@ -48,8 +50,8 @@ export default function ModelSelector() {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          'inline-flex items-center gap-1.5 text-sm font-medium max-w-[200px]',
-          'h-8 px-2 rounded-md hover:bg-accent transition-colors outline-none',
+          'inline-flex items-center gap-1.5 text-sm font-medium max-w-[220px]',
+          'h-8 px-2.5 rounded-md hover:bg-accent transition-colors outline-none',
           'focus-visible:ring-2 focus-visible:ring-ring/50'
         )}
       >
@@ -59,10 +61,8 @@ export default function ModelSelector() {
 
       <DropdownMenuContent align="center" className="w-64 max-h-80 overflow-y-auto">
         {featuredModels.length > 0 && (
-          <>
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Featured
-            </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Featured</DropdownMenuLabel>
             {featuredModels.map((model) => (
               <DropdownMenuItem
                 key={model.id}
@@ -79,26 +79,26 @@ export default function ModelSelector() {
                 )}
               </DropdownMenuItem>
             ))}
-          </>
+          </DropdownMenuGroup>
         )}
 
         {otherModels.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              More models
-            </DropdownMenuLabel>
-            {otherModels.map((model) => (
-              <DropdownMenuItem
-                key={model.id}
-                onSelect={() => handleSelect(model.id)}
-                className="cursor-pointer"
-              >
-                <span className="text-sm truncate">
-                  {model.name ?? model.id.split('/').pop()}
-                </span>
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>More models</DropdownMenuLabel>
+              {otherModels.map((model) => (
+                <DropdownMenuItem
+                  key={model.id}
+                  onSelect={() => handleSelect(model.id)}
+                  className="cursor-pointer"
+                >
+                  <span className="text-sm truncate">
+                    {model.name ?? model.id.split('/').pop()}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
           </>
         )}
       </DropdownMenuContent>

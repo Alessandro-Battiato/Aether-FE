@@ -310,7 +310,8 @@ export default function Sidebar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={handleLogout}
-              className="text-destructive focus:text-destructive cursor-pointer"
+              variant="destructive"
+              className="cursor-pointer"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sign out
