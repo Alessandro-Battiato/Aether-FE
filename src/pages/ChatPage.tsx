@@ -9,6 +9,7 @@ import MessageInput from '@/components/chat/MessageInput';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { fetchChats, createChat } from '@/features/chats/chatsSlice';
 import { useStream } from '@/hooks/useStream';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function ChatPage() {
@@ -22,6 +23,9 @@ export default function ChatPage() {
   } = useAppSelector((s) => s.chats);
 
   const { sendStreamMessage } = useStream();
+
+  // Update tab title: "Aether | <chat title>" when a chat is active
+  usePageTitle(activeChat?.title ?? undefined);
 
   useEffect(() => {
     dispatch(fetchChats());
@@ -80,7 +84,7 @@ export default function ChatPage() {
 
                 <div className="text-center">
                   <h1 className="text-2xl font-semibold tracking-tight mb-2">
-                    How can I help you today?
+                    What can I help you with?
                   </h1>
                   <p className="text-muted-foreground">
                     Start a new conversation to get started

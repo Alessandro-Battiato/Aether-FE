@@ -5,13 +5,16 @@ import { MessageSquare, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { register, clearError } from '@/features/auth/authSlice';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function RegisterPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isLoading, error, isAuthenticated } = useAppSelector((s) => s.auth);
+  usePageTitle('Sign up');
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,6 +46,10 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

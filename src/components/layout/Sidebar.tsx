@@ -29,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
@@ -108,7 +109,7 @@ export default function Sidebar() {
               <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
                 <MessageSquare className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="font-semibold text-sm truncate">GPT Clone</span>
+              <span className="font-semibold text-sm truncate">Aether</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -264,6 +265,13 @@ export default function Sidebar() {
           </div>
         )}
       </ScrollArea>
+
+      <Separator />
+
+      {/* Theme Toggle */}
+      <div className={cn('px-3 py-2 flex', isCollapsed ? 'justify-center' : 'justify-start')}>
+        <ThemeToggle variant={isCollapsed ? 'compact' : 'full'} />
+      </div>
 
       <Separator />
 

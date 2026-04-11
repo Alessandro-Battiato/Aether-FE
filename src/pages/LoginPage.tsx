@@ -5,13 +5,16 @@ import { MessageSquare, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { login, clearError } from '@/features/auth/authSlice';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isLoading, error, isAuthenticated } = useAppSelector((s) => s.auth);
+  usePageTitle('Sign in');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +36,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -44,7 +51,7 @@ export default function LoginPage() {
           <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mb-4">
             <MessageSquare className="w-6 h-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Welcome to Aether</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Sign in to your account
           </p>
