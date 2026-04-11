@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -19,6 +20,10 @@ function isFreeModel(model: AIModel): boolean {
   return false;
 }
 
+function modelDisplayName(model: AIModel): string {
+  return model.name ?? model.id.split('/').pop() ?? model.id;
+}
+
 export default function ModelSelector() {
   const dispatch = useAppDispatch();
   const { activeChat, models } = useAppSelector((s) => s.chats);
@@ -30,11 +35,14 @@ export default function ModelSelector() {
   if (!activeChat) return null;
 
   const currentModelId = activeChat.model;
+  const currentModel = models.find((m) => m.id === currentModelId);
+  const displayName = currentModel ? modelDisplayName(currentModel) : (currentModelId.split('/').pop() ?? currentModelId);
+
   const freeModels = models.filter(isFreeModel);
-  const currentModel = freeModels.find((m) => m.id === currentModelId)
-    ?? models.find((m) => m.id === currentModelId);
-  const displayName =
-    currentModel?.name ?? currentModelId.split('/').pop() ?? currentModelId;
+
+  // The active model may not be free (e.g. the server default openai/gpt-4o-mini).
+  // Always keep it accessible so users can revert after switching away.
+  const currentIsFree = freeModels.some((m) => m.id === currentModelId);
 
   const handleSelect = (modelId: string) => {
     dispatch(updateChat({ chatId: activeChat.id, model: modelId }));
@@ -54,6 +62,26 @@ export default function ModelSelector() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="center" className="w-64 max-h-80 overflow-y-auto">
+        {/* Current model at the top when it's not free */}
+        {!currentIsFree && currentModel && (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Current model</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => handleSelect(currentModel.id)}
+                className="flex flex-col items-start gap-0.5 cursor-pointer"
+              >
+                <span className="font-medium text-sm">{modelDisplayName(currentModel)}</span>
+                <span className="flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
+                  <AlertTriangle className="w-3 h-3" />
+                  Requires credits
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
+        )}
+
         <DropdownMenuGroup>
           <DropdownMenuLabel>Free models</DropdownMenuLabel>
           {freeModels.length === 0 ? (
@@ -67,9 +95,7 @@ export default function ModelSelector() {
                 onClick={() => handleSelect(model.id)}
                 className="flex flex-col items-start gap-0.5 cursor-pointer"
               >
-                <span className="font-medium text-sm">
-                  {model.name ?? model.id.split('/').pop()}
-                </span>
+                <span className="font-medium text-sm">{modelDisplayName(model)}</span>
                 {model.context_length && (
                   <span className="text-xs text-muted-foreground">
                     {(model.context_length / 1000).toFixed(0)}k context
