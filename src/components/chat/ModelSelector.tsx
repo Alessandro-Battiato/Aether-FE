@@ -6,21 +6,18 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { fetchModels, updateChat } from '@/features/chats/chatsSlice';
 import { cn } from '@/lib/utils';
+import type { AIModel } from '@/types';
 
-const FEATURED_MODEL_IDS = [
-  'openai/gpt-4o-mini',
-  'openai/gpt-4o',
-  'anthropic/claude-3.5-sonnet',
-  'anthropic/claude-3-haiku',
-  'google/gemini-flash-1.5',
-  'meta-llama/llama-3.1-8b-instruct:free',
-];
+function isFreeModel(model: AIModel): boolean {
+  if (model.id.endsWith(':free')) return true;
+  if (model.pricing?.prompt === '0' && model.pricing?.completion === '0') return true;
+  return false;
+}
 
 export default function ModelSelector() {
   const dispatch = useAppDispatch();
@@ -33,14 +30,11 @@ export default function ModelSelector() {
   if (!activeChat) return null;
 
   const currentModelId = activeChat.model;
-  const currentModel = models.find((m) => m.id === currentModelId);
+  const freeModels = models.filter(isFreeModel);
+  const currentModel = freeModels.find((m) => m.id === currentModelId)
+    ?? models.find((m) => m.id === currentModelId);
   const displayName =
     currentModel?.name ?? currentModelId.split('/').pop() ?? currentModelId;
-
-  const featuredModels = models.filter((m) => FEATURED_MODEL_IDS.includes(m.id));
-  const otherModels = models
-    .filter((m) => !FEATURED_MODEL_IDS.includes(m.id))
-    .slice(0, 20);
 
   const handleSelect = (modelId: string) => {
     dispatch(updateChat({ chatId: activeChat.id, model: modelId }));
@@ -60,10 +54,14 @@ export default function ModelSelector() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="center" className="w-64 max-h-80 overflow-y-auto">
-        {featuredModels.length > 0 && (
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Featured</DropdownMenuLabel>
-            {featuredModels.map((model) => (
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Free models</DropdownMenuLabel>
+          {freeModels.length === 0 ? (
+            <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+              Loading…
+            </div>
+          ) : (
+            freeModels.map((model) => (
               <DropdownMenuItem
                 key={model.id}
                 onClick={() => handleSelect(model.id)}
@@ -78,29 +76,9 @@ export default function ModelSelector() {
                   </span>
                 )}
               </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        )}
-
-        {otherModels.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>More models</DropdownMenuLabel>
-              {otherModels.map((model) => (
-                <DropdownMenuItem
-                  key={model.id}
-                  onClick={() => handleSelect(model.id)}
-                  className="cursor-pointer"
-                >
-                  <span className="text-sm truncate">
-                    {model.name ?? model.id.split('/').pop()}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          </>
-        )}
+            ))
+          )}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

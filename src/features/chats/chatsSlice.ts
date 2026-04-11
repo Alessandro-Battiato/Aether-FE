@@ -26,6 +26,8 @@ const initialState: ChatsState = {
   error: null,
 };
 
+// ─── Regular (loading-state) thunks ──────────────────────────────────────────
+
 export const fetchChats = createAsyncThunk(
   'chats/fetchChats',
   async (_, { rejectWithValue }) => {
@@ -51,6 +53,26 @@ export const fetchChat = createAsyncThunk(
     }
   }
 );
+
+// ─── Silent refresh thunks (no loading-state changes → no skeleton flash) ────
+
+export const silentRefreshChats = createAsyncThunk(
+  'chats/silentRefreshChats',
+  async () => {
+    const res = await api.get<{ status: string; data: { chats: Chat[] } }>('/chats');
+    return res.data.data.chats;
+  }
+);
+
+export const silentRefreshActiveChat = createAsyncThunk(
+  'chats/silentRefreshActiveChat',
+  async (chatId: string) => {
+    const res = await api.get<{ status: string; data: { chat: Chat } }>(`/chats/${chatId}`);
+    return res.data.data.chat;
+  }
+);
+
+// ─── Mutation thunks ──────────────────────────────────────────────────────────
 
 export const createChat = createAsyncThunk(
   'chats/createChat',
@@ -97,25 +119,6 @@ export const deleteChat = createAsyncThunk(
   }
 );
 
-export const sendMessage = createAsyncThunk(
-  'chats/sendMessage',
-  async (
-    { chatId, content }: { chatId: string; content: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      const res = await api.post<{
-        status: string;
-        data: { userMessage: Message; assistantMessage: Message };
-      }>(`/chats/${chatId}/messages`, { content });
-      return res.data.data;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to send message');
-    }
-  }
-);
-
 export const fetchModels = createAsyncThunk(
   'chats/fetchModels',
   async (_, { rejectWithValue }) => {
@@ -132,41 +135,45 @@ export const fetchModels = createAsyncThunk(
   }
 );
 
+// ─── Slice ────────────────────────────────────────────────────────────────────
+
 const chatsSlice = createSlice({
   name: 'chats',
   initialState,
   reducers: {
     setActiveChatId(state, action: PayloadAction<string | null>) {
       state.activeChatId = action.payload;
-      if (action.payload === null) {
-        state.activeChat = null;
-      }
+      if (action.payload === null) state.activeChat = null;
     },
     appendStreamChunk(state, action: PayloadAction<string>) {
       state.streamingContent += action.payload;
     },
     setIsStreaming(state, action: PayloadAction<boolean>) {
       state.isStreaming = action.payload;
-      if (!action.payload) {
-        state.streamingContent = '';
-      }
+      if (!action.payload) state.streamingContent = '';
     },
-    addStreamedMessage(
+    /**
+     * Called at the end of a successful stream.
+     * Replaces the optimistic user message with the real IDs, then appends
+     * the assistant message — no extra fetch needed.
+     */
+    finaliseStreamedMessages(
       state,
-      action: PayloadAction<{ userMessage: Message; assistantMessage: Message }>
+      action: PayloadAction<{
+        optimisticId: string;
+        userMessage: Message;
+        assistantMessage: Message;
+      }>
     ) {
       if (state.activeChat) {
+        const filtered = (state.activeChat.messages ?? []).filter(
+          (m) => m.id !== action.payload.optimisticId
+        );
         state.activeChat.messages = [
-          ...(state.activeChat.messages ?? []),
+          ...filtered,
           action.payload.userMessage,
           action.payload.assistantMessage,
         ];
-      }
-      // Update the chat title if it changed (first message auto-titles)
-      const chat = state.chats.find((c) => c.id === state.activeChatId);
-      if (chat && state.activeChat) {
-        chat.title = state.activeChat.title;
-        chat.updatedAt = new Date().toISOString();
       }
     },
     addOptimisticUserMessage(state, action: PayloadAction<Message>) {
@@ -189,9 +196,7 @@ const chatsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // fetchChats
-      .addCase(fetchChats.pending, (state) => {
-        state.isLoadingChats = true;
-      })
+      .addCase(fetchChats.pending, (state) => { state.isLoadingChats = true; })
       .addCase(fetchChats.fulfilled, (state, action) => {
         state.isLoadingChats = false;
         state.chats = action.payload;
@@ -201,21 +206,39 @@ const chatsSlice = createSlice({
         state.error = action.payload as string;
       })
       // fetchChat
-      .addCase(fetchChat.pending, (state) => {
-        state.isLoadingMessages = true;
-      })
+      .addCase(fetchChat.pending, (state) => { state.isLoadingMessages = true; })
       .addCase(fetchChat.fulfilled, (state, action) => {
         state.isLoadingMessages = false;
         state.activeChat = action.payload;
-        // Update in chats list too
         const idx = state.chats.findIndex((c) => c.id === action.payload.id);
-        if (idx !== -1) {
-          state.chats[idx] = { ...state.chats[idx], ...action.payload };
-        }
+        if (idx !== -1) state.chats[idx] = { ...state.chats[idx], ...action.payload };
       })
       .addCase(fetchChat.rejected, (state, action) => {
         state.isLoadingMessages = false;
         state.error = action.payload as string;
+      })
+      // silentRefreshChats — only update titles, no loading flag
+      .addCase(silentRefreshChats.fulfilled, (state, action) => {
+        for (const updated of action.payload) {
+          const existing = state.chats.find((c) => c.id === updated.id);
+          if (existing) {
+            existing.title = updated.title;
+            existing.updatedAt = updated.updatedAt;
+          }
+        }
+      })
+      // silentRefreshActiveChat — only update metadata, never replace messages
+      .addCase(silentRefreshActiveChat.fulfilled, (state, action) => {
+        const { id, title, updatedAt } = action.payload;
+        if (state.activeChat?.id === id) {
+          state.activeChat.title = title;
+          state.activeChat.updatedAt = updatedAt;
+        }
+        const idx = state.chats.findIndex((c) => c.id === id);
+        if (idx !== -1) {
+          state.chats[idx].title = title;
+          state.chats[idx].updatedAt = updatedAt;
+        }
       })
       // createChat
       .addCase(createChat.fulfilled, (state, action) => {
@@ -226,9 +249,7 @@ const chatsSlice = createSlice({
       // updateChat
       .addCase(updateChat.fulfilled, (state, action) => {
         const idx = state.chats.findIndex((c) => c.id === action.payload.id);
-        if (idx !== -1) {
-          state.chats[idx] = action.payload;
-        }
+        if (idx !== -1) state.chats[idx] = action.payload;
         if (state.activeChat?.id === action.payload.id) {
           state.activeChat = { ...state.activeChat, ...action.payload };
         }
@@ -241,27 +262,6 @@ const chatsSlice = createSlice({
           state.activeChat = null;
         }
       })
-      // sendMessage
-      .addCase(sendMessage.pending, (state) => {
-        state.isLoadingMessages = true;
-      })
-      .addCase(sendMessage.fulfilled, (state, action) => {
-        state.isLoadingMessages = false;
-        if (state.activeChat) {
-          state.activeChat.messages = [
-            ...(state.activeChat.messages ?? []),
-            action.payload.userMessage,
-            action.payload.assistantMessage,
-          ];
-        }
-        // Refresh title in sidebar
-        const chat = state.chats.find((c) => c.id === state.activeChatId);
-        if (chat) chat.updatedAt = new Date().toISOString();
-      })
-      .addCase(sendMessage.rejected, (state, action) => {
-        state.isLoadingMessages = false;
-        state.error = action.payload as string;
-      })
       // fetchModels
       .addCase(fetchModels.fulfilled, (state, action) => {
         state.models = action.payload;
@@ -273,7 +273,7 @@ export const {
   setActiveChatId,
   appendStreamChunk,
   setIsStreaming,
-  addStreamedMessage,
+  finaliseStreamedMessages,
   addOptimisticUserMessage,
   clearError,
   resetChats,

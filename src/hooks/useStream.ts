@@ -1,12 +1,13 @@
 import { useCallback } from 'react';
+import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   appendStreamChunk,
   setIsStreaming,
-  addStreamedMessage,
+  finaliseStreamedMessages,
   addOptimisticUserMessage,
-  fetchChats,
-  fetchChat,
+  silentRefreshChats,
+  silentRefreshActiveChat,
 } from '@/features/chats/chatsSlice';
 import type { Message } from '@/types';
 
@@ -14,15 +15,16 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1';
 
 export function useStream() {
   const dispatch = useAppDispatch();
-  const { activeChatId, activeChat } = useAppSelector((s) => s.chats);
+  const { activeChatId } = useAppSelector((s) => s.chats);
 
   const sendStreamMessage = useCallback(
     async (content: string) => {
       if (!activeChatId) return;
 
-      // Optimistic user message
+      const optimisticId = `optimistic-${Date.now()}`;
+
       const optimisticMsg: Message = {
-        id: `optimistic-${Date.now()}`,
+        id: optimisticId,
         role: 'user',
         content,
         chatId: activeChatId,
@@ -43,7 +45,8 @@ export function useStream() {
         );
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          const errBody = await response.json().catch(() => ({})) as { message?: string };
+          throw new Error(errBody.message ?? `Request failed (${response.status})`);
         }
 
         const reader = response.body?.getReader();
@@ -54,8 +57,9 @@ export function useStream() {
         let finalUserMessageId = '';
         let finalAssistantMessageId = '';
         let fullContent = '';
+        let streamError: string | null = null;
 
-        while (true) {
+        outer: while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -74,7 +78,15 @@ export function useStream() {
                 done?: boolean;
                 messageId?: string;
                 userMessageId?: string;
+                error?: string;
               };
+
+              // Server-sent error (e.g. 402 insufficient credits)
+              if (parsed.error) {
+                streamError = parsed.error;
+                reader.cancel();
+                break outer;
+              }
 
               if (parsed.delta) {
                 dispatch(appendStreamChunk(parsed.delta));
@@ -86,43 +98,51 @@ export function useStream() {
                 finalUserMessageId = parsed.userMessageId ?? '';
               }
             } catch {
-              // skip malformed lines
+              // skip malformed line
             }
           }
         }
 
-        // Replace optimistic message with real data
-        const userMessage: Message = {
-          id: finalUserMessageId,
-          role: 'user',
-          content,
-          chatId: activeChatId,
-          createdAt: new Date().toISOString(),
-        };
-        const assistantMessage: Message = {
-          id: finalAssistantMessageId,
-          role: 'assistant',
-          content: fullContent,
-          chatId: activeChatId,
-          createdAt: new Date().toISOString(),
-        };
-
-        // Remove the optimistic message and add real ones
-        if (activeChat) {
-          // We'll refresh the chat to get accurate data including auto-title
-          dispatch(addStreamedMessage({ userMessage, assistantMessage }));
-          // Also refresh the chats list to update title in sidebar
-          dispatch(fetchChats());
-          // Refresh active chat to sync with server
-          dispatch(fetchChat(activeChatId));
+        if (streamError) {
+          // Surface the error as a toast; strip leading status-code prefix if present
+          const clean = streamError.replace(/^\d{3}\s*/, '');
+          toast.error('Message failed', { description: clean });
+          return;
         }
+
+        // Swap optimistic message for real IDs and append assistant reply
+        dispatch(
+          finaliseStreamedMessages({
+            optimisticId,
+            userMessage: {
+              id: finalUserMessageId,
+              role: 'user',
+              content,
+              chatId: activeChatId,
+              createdAt: new Date().toISOString(),
+            },
+            assistantMessage: {
+              id: finalAssistantMessageId,
+              role: 'assistant',
+              content: fullContent,
+              chatId: activeChatId,
+              createdAt: new Date().toISOString(),
+            },
+          })
+        );
+
+        // Silent refresh to pick up server-generated chat title and sync timestamps.
+        // Uses dedicated thunks that do NOT touch loading flags → no skeleton flash.
+        dispatch(silentRefreshActiveChat(activeChatId));
+        dispatch(silentRefreshChats());
       } catch (err) {
-        console.error('Stream error:', err);
+        const msg = err instanceof Error ? err.message : 'Unexpected error';
+        toast.error('Message failed', { description: msg });
       } finally {
         dispatch(setIsStreaming(false));
       }
     },
-    [activeChatId, activeChat, dispatch]
+    [activeChatId, dispatch]
   );
 
   return { sendStreamMessage };

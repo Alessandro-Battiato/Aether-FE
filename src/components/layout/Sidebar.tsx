@@ -13,6 +13,16 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -50,6 +60,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
   const handleNewChat = () => {
     dispatch(createChat());
@@ -60,9 +71,14 @@ export default function Sidebar() {
     dispatch(fetchChat(chat.id));
   };
 
-  const handleDelete = (e: React.MouseEvent, chatId: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, chatId: string) => {
     e.stopPropagation();
-    dispatch(deleteChat(chatId));
+    setDeletingChatId(chatId);
+  };
+
+  const confirmDelete = () => {
+    if (deletingChatId) dispatch(deleteChat(deletingChatId));
+    setDeletingChatId(null);
   };
 
   const handleStartRename = (e: React.MouseEvent, chat: Chat) => {
@@ -252,7 +268,7 @@ export default function Sidebar() {
                           size="icon"
                           variant="ghost"
                           className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={(e) => handleDelete(e, chat.id)}
+                          onClick={(e) => handleDeleteClick(e, chat.id)}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -327,6 +343,27 @@ export default function Sidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Delete confirmation dialog — rendered outside the scrollable area */}
+      <AlertDialog
+        open={deletingChatId !== null}
+        onOpenChange={(open) => { if (!open) setDeletingChatId(null); }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This conversation will be permanently deleted and cannot be recovered.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.aside>
   );
 }
