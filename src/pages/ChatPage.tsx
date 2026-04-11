@@ -35,7 +35,7 @@ export default function ChatPage() {
   const messages = activeChat?.messages ?? [];
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delay={300}>
       <div className="flex h-screen bg-background overflow-hidden">
         <Sidebar />
 

@@ -129,33 +129,26 @@ export default function Sidebar() {
 
       {/* New Chat Button */}
       <div className="px-2 pb-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                'w-full gap-2 transition-all',
-                isCollapsed ? 'px-0 justify-center' : 'justify-start'
-              )}
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger
+              className="inline-flex w-full items-center justify-center h-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               onClick={handleNewChat}
             >
-              <Plus className="w-4 h-4 flex-shrink-0" />
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    className="overflow-hidden whitespace-nowrap text-sm"
-                  >
-                    New chat
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </Button>
-          </TooltipTrigger>
-          {isCollapsed && <TooltipContent side="right">New chat</TooltipContent>}
-        </Tooltip>
+              <Plus className="w-4 h-4" />
+            </TooltipTrigger>
+            <TooltipContent side="right">New chat</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full gap-2 justify-start"
+            onClick={handleNewChat}
+          >
+            <Plus className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">New chat</span>
+          </Button>
+        )}
       </div>
 
       <Separator />
@@ -215,54 +208,55 @@ export default function Sidebar() {
                         <X className="w-3 h-3" />
                       </Button>
                     </div>
-                  ) : (
+                  ) : isCollapsed ? (
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={cn(
-                            'group flex items-center rounded-lg cursor-pointer transition-colors',
-                            'hover:bg-sidebar-accent',
-                            activeChatId === chat.id
-                              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                              : 'text-sidebar-foreground',
-                            isCollapsed ? 'justify-center px-0 py-2' : 'px-2 py-2 gap-2'
-                          )}
-                          onClick={() => handleSelectChat(chat)}
-                        >
-                          <MessageSquare className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-
-                          {!isCollapsed && (
-                            <>
-                              <span className="flex-1 text-sm truncate">
-                                {chat.title}
-                              </span>
-
-                              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={(e) => handleStartRename(e, chat)}
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
-                                  onClick={(e) => handleDelete(e, chat.id)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                      <TooltipTrigger
+                        className={cn(
+                          'flex w-full items-center justify-center rounded-lg cursor-pointer transition-colors py-2',
+                          'hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                          activeChatId === chat.id
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                            : 'text-sidebar-foreground'
+                        )}
+                        onClick={() => handleSelectChat(chat)}
+                      >
+                        <MessageSquare className="w-4 h-4 text-muted-foreground" />
                       </TooltipTrigger>
-                      {isCollapsed && (
-                        <TooltipContent side="right">{chat.title}</TooltipContent>
-                      )}
+                      <TooltipContent side="right">{chat.title}</TooltipContent>
                     </Tooltip>
+                  ) : (
+                    <div
+                      className={cn(
+                        'group flex items-center px-2 py-2 gap-2 rounded-lg cursor-pointer transition-colors',
+                        'hover:bg-sidebar-accent',
+                        activeChatId === chat.id
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          : 'text-sidebar-foreground'
+                      )}
+                      onClick={() => handleSelectChat(chat)}
+                    >
+                      <MessageSquare className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                      <span className="flex-1 text-sm truncate">{chat.title}</span>
+
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={(e) => handleStartRename(e, chat)}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={(e) => handleDelete(e, chat.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </motion.div>
               ))}
@@ -276,38 +270,36 @@ export default function Sidebar() {
       {/* User Menu */}
       <div className="p-2">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className={cn(
-                'w-full gap-2 h-auto py-2',
-                isCollapsed ? 'justify-center px-0' : 'justify-start'
-              )}
-            >
-              <Avatar className="h-7 w-7 flex-shrink-0">
-                <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                  {userInitials ?? <User className="w-3.5 h-3.5" />}
-                </AvatarFallback>
-              </Avatar>
+          <DropdownMenuTrigger
+            className={cn(
+              'flex w-full items-center rounded-md py-2 transition-colors',
+              'hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              isCollapsed ? 'justify-center px-0' : 'gap-2 px-2'
+            )}
+          >
+            <Avatar className="h-7 w-7 flex-shrink-0">
+              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                {userInitials ?? <User className="w-3.5 h-3.5" />}
+              </AvatarFallback>
+            </Avatar>
 
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.div
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    className="overflow-hidden text-left"
-                  >
-                    <p className="text-sm font-medium truncate leading-tight">
-                      {user?.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate leading-tight">
-                      {user?.email}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Button>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="overflow-hidden text-left min-w-0"
+                >
+                  <p className="text-sm font-medium truncate leading-tight">
+                    {user?.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate leading-tight">
+                    {user?.email}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </DropdownMenuTrigger>
 
           <DropdownMenuContent side="top" align="start" className="w-52">
@@ -317,7 +309,7 @@ export default function Sidebar() {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={handleLogout}
+              onSelect={handleLogout}
               className="text-destructive focus:text-destructive cursor-pointer"
             >
               <LogOut className="w-4 h-4 mr-2" />

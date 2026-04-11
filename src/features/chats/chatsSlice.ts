@@ -54,9 +54,9 @@ export const fetchChat = createAsyncThunk(
 
 export const createChat = createAsyncThunk(
   'chats/createChat',
-  async (payload: { title?: string; model?: string } = {}, { rejectWithValue }) => {
+  async (payload: { title?: string; model?: string } | undefined, { rejectWithValue }) => {
     try {
-      const res = await api.post<{ status: string; data: { chat: Chat } }>('/chats', payload);
+      const res = await api.post<{ status: string; data: { chat: Chat } }>('/chats', payload ?? {});
       return res.data.data.chat;
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };

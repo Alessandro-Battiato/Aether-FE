@@ -8,9 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { fetchModels, updateChat } from '@/features/chats/chatsSlice';
+import { cn } from '@/lib/utils';
 
 const FEATURED_MODELS = [
   'openai/gpt-4o-mini',
@@ -46,15 +46,15 @@ export default function ModelSelector() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5 text-sm font-medium max-w-[200px] truncate"
-        >
-          <span className="truncate">{displayName}</span>
-          <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-        </Button>
+      <DropdownMenuTrigger
+        className={cn(
+          'inline-flex items-center gap-1.5 text-sm font-medium max-w-[200px]',
+          'h-8 px-2 rounded-md hover:bg-accent transition-colors outline-none',
+          'focus-visible:ring-2 focus-visible:ring-ring/50'
+        )}
+      >
+        <span className="truncate">{displayName}</span>
+        <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="center" className="w-64 max-h-80 overflow-y-auto">
