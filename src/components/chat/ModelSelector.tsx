@@ -66,7 +66,7 @@ export default function ModelSelector() {
             {featuredModels.map((model) => (
               <DropdownMenuItem
                 key={model.id}
-                onSelect={() => handleSelect(model.id)}
+                onClick={() => handleSelect(model.id)}
                 className="flex flex-col items-start gap-0.5 cursor-pointer"
               >
                 <span className="font-medium text-sm">
@@ -90,7 +90,7 @@ export default function ModelSelector() {
               {otherModels.map((model) => (
                 <DropdownMenuItem
                   key={model.id}
-                  onSelect={() => handleSelect(model.id)}
+                  onClick={() => handleSelect(model.id)}
                   className="cursor-pointer"
                 >
                   <span className="text-sm truncate">

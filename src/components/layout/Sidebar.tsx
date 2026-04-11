@@ -317,7 +317,7 @@ export default function Sidebar() {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onSelect={handleLogout}
+              onClick={handleLogout}
               variant="destructive"
               className="cursor-pointer"
             >
