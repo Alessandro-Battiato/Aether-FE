@@ -7,20 +7,25 @@ import ChatHeader from '@/components/layout/ChatHeader';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { fetchChats, createChat } from '@/features/chats/chatsSlice';
+import { fetchChats, createChat } from '@/features/chats/chatsThunks';
+import {
+  selectActiveChat,
+  selectActiveChatId,
+  selectIsLoadingMessages,
+  selectIsStreaming,
+  selectStreamingContent,
+} from '@/features/chats/chatsSelectors';
 import { useStream } from '@/hooks/useStream';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function ChatPage() {
   const dispatch = useAppDispatch();
-  const {
-    activeChat,
-    activeChatId,
-    isLoadingMessages,
-    isStreaming,
-    streamingContent,
-  } = useAppSelector((s) => s.chats);
+  const activeChat = useAppSelector(selectActiveChat);
+  const activeChatId = useAppSelector(selectActiveChatId);
+  const isLoadingMessages = useAppSelector(selectIsLoadingMessages);
+  const isStreaming = useAppSelector(selectIsStreaming);
+  const streamingContent = useAppSelector(selectStreamingContent);
 
   const { sendStreamMessage, cancelStream } = useStream();
 

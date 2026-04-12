@@ -1,12 +1,27 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Chat, Message, AIModel } from '@/types';
-import api from '@/lib/api';
+import {
+  fetchChats,
+  fetchChat,
+  silentRefreshChats,
+  silentRefreshActiveChat,
+  createChat,
+  updateChat,
+  deleteChat,
+  fetchModels,
+  fetchMoreModels,
+} from './chatsThunks';
+
+// ─── State ────────────────────────────────────────────────────────────────────
 
 interface ChatsState {
   chats: Chat[];
   activeChatId: string | null;
   activeChat: Chat | null;
   models: AIModel[];
+  modelsPage: number;       // last page successfully fetched (0 = none yet)
+  modelsTotalPages: number;
+  isLoadingModels: boolean;
   isLoadingChats: boolean;
   isLoadingMessages: boolean;
   isStreaming: boolean;
@@ -19,6 +34,9 @@ const initialState: ChatsState = {
   activeChatId: null,
   activeChat: null,
   models: [],
+  modelsPage: 0,
+  modelsTotalPages: 1,
+  isLoadingModels: false,
   isLoadingChats: false,
   isLoadingMessages: false,
   isStreaming: false,
@@ -26,114 +44,29 @@ const initialState: ChatsState = {
   error: null,
 };
 
-// ─── Regular (loading-state) thunks ──────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export const fetchChats = createAsyncThunk(
-  'chats/fetchChats',
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await api.get<{ status: string; data: { chats: Chat[] } }>('/chats');
-      return res.data.data.chats;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to load chats');
-    }
-  }
-);
+const BROKEN_PREFIXES = ['minimax/', 'google/'];
+const GPT_4O_MINI_ID = 'openai/gpt-4o-mini';
 
-export const fetchChat = createAsyncThunk(
-  'chats/fetchChat',
-  async (chatId: string, { rejectWithValue }) => {
-    try {
-      const res = await api.get<{ status: string; data: { chat: Chat } }>(`/chats/${chatId}`);
-      return res.data.data.chat;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to load chat');
-    }
-  }
-);
+/** Filter broken providers out of a raw server model list. */
+function filterModels(raw: AIModel[]): AIModel[] {
+  return raw.filter(
+    (m) => !BROKEN_PREFIXES.some((prefix) => m.id.startsWith(prefix))
+  );
+}
 
-// ─── Silent refresh thunks (no loading-state changes → no skeleton flash) ────
-
-export const silentRefreshChats = createAsyncThunk(
-  'chats/silentRefreshChats',
-  async () => {
-    const res = await api.get<{ status: string; data: { chats: Chat[] } }>('/chats');
-    return res.data.data.chats;
-  }
-);
-
-export const silentRefreshActiveChat = createAsyncThunk(
-  'chats/silentRefreshActiveChat',
-  async (chatId: string) => {
-    const res = await api.get<{ status: string; data: { chat: Chat } }>(`/chats/${chatId}`);
-    return res.data.data.chat;
-  }
-);
-
-// ─── Mutation thunks ──────────────────────────────────────────────────────────
-
-export const createChat = createAsyncThunk(
-  'chats/createChat',
-  async (payload: { title?: string; model?: string } | undefined, { rejectWithValue }) => {
-    try {
-      const res = await api.post<{ status: string; data: { chat: Chat } }>('/chats', payload ?? {});
-      return res.data.data.chat;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to create chat');
-    }
-  }
-);
-
-export const updateChat = createAsyncThunk(
-  'chats/updateChat',
-  async (
-    { chatId, ...payload }: { chatId: string; title?: string; model?: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      const res = await api.patch<{ status: string; data: { chat: Chat } }>(
-        `/chats/${chatId}`,
-        payload
-      );
-      return res.data.data.chat;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to update chat');
-    }
-  }
-);
-
-export const deleteChat = createAsyncThunk(
-  'chats/deleteChat',
-  async (chatId: string, { rejectWithValue }) => {
-    try {
-      await api.delete(`/chats/${chatId}`);
-      return chatId;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to delete chat');
-    }
-  }
-);
-
-export const fetchModels = createAsyncThunk(
-  'chats/fetchModels',
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await api.get<{
-        status: string;
-        data: { models: AIModel[]; total: number };
-      }>('/chats/models?limit=100');
-      return res.data.data.models;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to load models');
-    }
-  }
-);
+/**
+ * Ensure gpt-4o-mini is present in the full accumulated list.
+ * Called only after the initial page-1 fetch so it's never duplicated.
+ */
+function ensureGpt4oMini(models: AIModel[]): AIModel[] {
+  if (models.some((m) => m.id === GPT_4O_MINI_ID)) return models;
+  return [
+    { id: GPT_4O_MINI_ID, name: 'GPT-4o Mini', pricing: { prompt: '0', completion: '0' } },
+    ...models,
+  ];
+}
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
@@ -152,11 +85,6 @@ const chatsSlice = createSlice({
       state.isStreaming = action.payload;
       if (!action.payload) state.streamingContent = '';
     },
-    /**
-     * Called at the end of a successful stream.
-     * Replaces the optimistic user message with the real IDs, then appends
-     * the assistant message — no extra fetch needed.
-     */
     finaliseStreamedMessages(
       state,
       action: PayloadAction<{
@@ -217,7 +145,7 @@ const chatsSlice = createSlice({
         state.isLoadingMessages = false;
         state.error = action.payload as string;
       })
-      // silentRefreshChats — only update titles, no loading flag
+      // silentRefreshChats
       .addCase(silentRefreshChats.fulfilled, (state, action) => {
         for (const updated of action.payload) {
           const existing = state.chats.find((c) => c.id === updated.id);
@@ -227,7 +155,7 @@ const chatsSlice = createSlice({
           }
         }
       })
-      // silentRefreshActiveChat — only update metadata, never replace messages
+      // silentRefreshActiveChat
       .addCase(silentRefreshActiveChat.fulfilled, (state, action) => {
         const { id, title, updatedAt } = action.payload;
         if (state.activeChat?.id === id) {
@@ -262,24 +190,24 @@ const chatsSlice = createSlice({
           state.activeChat = null;
         }
       })
-      // fetchModels — filter broken providers, then ensure the server default
-      // (openai/gpt-4o-mini) is always present as a selectable free model even
-      // when the models endpoint doesn't return it.
+      // fetchModels — initial load, replaces list
+      .addCase(fetchModels.pending, (state) => { state.isLoadingModels = true; })
       .addCase(fetchModels.fulfilled, (state, action) => {
-        const BROKEN_PREFIXES = ['minimax/', 'google/'];
-        const filtered = action.payload.filter(
-          (m) => !BROKEN_PREFIXES.some((prefix) => m.id.startsWith(prefix))
-        );
-        const GPT_4O_MINI_ID = 'openai/gpt-4o-mini';
-        if (!filtered.some((m) => m.id === GPT_4O_MINI_ID)) {
-          filtered.unshift({
-            id: GPT_4O_MINI_ID,
-            name: 'GPT-4o Mini',
-            pricing: { prompt: '0', completion: '0' },
-          });
-        }
-        state.models = filtered;
-      });
+        state.isLoadingModels = false;
+        state.models = ensureGpt4oMini(filterModels(action.payload.models));
+        state.modelsPage = action.payload.page;
+        state.modelsTotalPages = action.payload.totalPages;
+      })
+      .addCase(fetchModels.rejected, (state) => { state.isLoadingModels = false; })
+      // fetchMoreModels — appends to list
+      .addCase(fetchMoreModels.pending, (state) => { state.isLoadingModels = true; })
+      .addCase(fetchMoreModels.fulfilled, (state, action) => {
+        state.isLoadingModels = false;
+        state.models = [...state.models, ...filterModels(action.payload.models)];
+        state.modelsPage = action.payload.page;
+        state.modelsTotalPages = action.payload.totalPages;
+      })
+      .addCase(fetchMoreModels.rejected, (state) => { state.isLoadingModels = false; });
   },
 });
 

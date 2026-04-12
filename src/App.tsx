@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { fetchMe } from '@/features/auth/authSlice';
+import { fetchMe } from '@/features/auth/authThunks';
+import { selectIsAuthenticated } from '@/features/auth/authSelectors';
 import { resetChats } from '@/features/chats/chatsSlice';
 import { Loader2 } from 'lucide-react';
 
@@ -21,7 +22,7 @@ function PageLoader() {
 
 function AppRoutes() {
   const dispatch = useAppDispatch();
-  const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   useEffect(() => {
     dispatch(fetchMe());

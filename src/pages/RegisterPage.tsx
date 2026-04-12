@@ -7,13 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { register, clearError } from '@/features/auth/authSlice';
+import { register } from '@/features/auth/authThunks';
+import { clearError } from '@/features/auth/authSlice';
+import { selectIsAuthenticated, selectAuthIsLoading, selectAuthError } from '@/features/auth/authSelectors';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function RegisterPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, isAuthenticated } = useAppSelector((s) => s.auth);
+  const isLoading = useAppSelector(selectAuthIsLoading);
+  const error = useAppSelector(selectAuthError);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
   usePageTitle('Sign up');
 
   const [name, setName] = useState('');

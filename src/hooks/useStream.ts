@@ -6,16 +6,16 @@ import {
   setIsStreaming,
   finaliseStreamedMessages,
   addOptimisticUserMessage,
-  silentRefreshChats,
-  silentRefreshActiveChat,
 } from '@/features/chats/chatsSlice';
+import { silentRefreshChats, silentRefreshActiveChat } from '@/features/chats/chatsThunks';
+import { selectActiveChatId } from '@/features/chats/chatsSelectors';
 import type { Message } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1';
 
 export function useStream() {
   const dispatch = useAppDispatch();
-  const { activeChatId } = useAppSelector((s) => s.chats);
+  const activeChatId = useAppSelector(selectActiveChatId);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const cancelStream = useCallback(() => {

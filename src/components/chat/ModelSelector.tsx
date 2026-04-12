@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ChevronDown, AlertTriangle } from 'lucide-react';
+import { ChevronDown, AlertTriangle, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +10,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { fetchModels, updateChat } from '@/features/chats/chatsSlice';
+import { updateChat } from '@/features/chats/chatsThunks';
+import { fetchModels, fetchMoreModels } from '@/features/chats/chatsThunks';
+import {
+  selectActiveChat,
+  selectModels,
+  selectModelsPage,
+  selectHasMoreModels,
+  selectIsLoadingModels,
+} from '@/features/chats/chatsSelectors';
 import { cn } from '@/lib/utils';
 import type { AIModel } from '@/types';
 
@@ -26,11 +34,16 @@ function modelDisplayName(model: AIModel): string {
 
 export default function ModelSelector() {
   const dispatch = useAppDispatch();
-  const { activeChat, models } = useAppSelector((s) => s.chats);
+  const activeChat = useAppSelector(selectActiveChat);
+  const models = useAppSelector(selectModels);
+  const modelsPage = useAppSelector(selectModelsPage);
+  const hasMoreModels = useAppSelector(selectHasMoreModels);
+  const isLoadingModels = useAppSelector(selectIsLoadingModels);
 
+  // Trigger the first fetch only once (modelsPage stays 0 until page 1 lands)
   useEffect(() => {
-    if (models.length === 0) dispatch(fetchModels());
-  }, [dispatch, models.length]);
+    if (modelsPage === 0) dispatch(fetchModels());
+  }, [dispatch, modelsPage]);
 
   if (!activeChat) return null;
 
@@ -61,7 +74,7 @@ export default function ModelSelector() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="center" className="w-64 max-h-80 overflow-y-auto">
-        {/* Current model shown at the top only when it genuinely requires credits */}
+        {/* Current model pinned at top only when it genuinely requires credits */}
         {!currentIsFree && currentModel && (
           <>
             <DropdownMenuGroup>
@@ -95,15 +108,28 @@ export default function ModelSelector() {
                 className="flex flex-col items-start gap-0.5 cursor-pointer"
               >
                 <span className="font-medium text-sm">{modelDisplayName(model)}</span>
-                {model.context_length && (
-                  <span className="text-xs text-muted-foreground">
-                    {(model.context_length / 1000).toFixed(0)}k context
-                  </span>
-                )}
               </DropdownMenuItem>
             ))
           )}
         </DropdownMenuGroup>
+
+        {/* Load more — only shown while there are still pages to fetch */}
+        {hasMoreModels && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => dispatch(fetchMoreModels(modelsPage + 1))}
+              disabled={isLoadingModels}
+              className="justify-center gap-1.5 text-xs text-muted-foreground cursor-pointer"
+            >
+              {isLoadingModels ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                'Load more'
+              )}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

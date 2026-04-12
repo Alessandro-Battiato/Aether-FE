@@ -1,13 +1,15 @@
 import { Navigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import { Loader2 } from 'lucide-react';
+import { selectIsAuthenticated, selectAuthIsLoading } from '@/features/auth/authSelectors';
 
 interface Props {
   children: React.ReactNode;
 }
 
 export default function ProtectedRoute({ children }: Props) {
-  const { isAuthenticated, isLoading } = useAppSelector((s) => s.auth);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const isLoading = useAppSelector(selectAuthIsLoading);
 
   if (isLoading) {
     return (

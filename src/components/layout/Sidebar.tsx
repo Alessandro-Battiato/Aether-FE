@@ -43,20 +43,19 @@ import {
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import {
-  createChat,
-  deleteChat,
-  updateChat,
-  fetchChat,
-  setActiveChatId,
-} from '@/features/chats/chatsSlice';
-import { logout } from '@/features/auth/authSlice';
+import { createChat, deleteChat, updateChat, fetchChat } from '@/features/chats/chatsThunks';
+import { setActiveChatId } from '@/features/chats/chatsSlice';
+import { logout } from '@/features/auth/authThunks';
+import { selectChats, selectActiveChatId, selectIsLoadingChats } from '@/features/chats/chatsSelectors';
+import { selectUser } from '@/features/auth/authSelectors';
 import type { Chat } from '@/types';
 
 export default function Sidebar() {
   const dispatch = useAppDispatch();
-  const { chats, activeChatId, isLoadingChats } = useAppSelector((s) => s.chats);
-  const { user } = useAppSelector((s) => s.auth);
+  const chats = useAppSelector(selectChats);
+  const activeChatId = useAppSelector(selectActiveChatId);
+  const isLoadingChats = useAppSelector(selectIsLoadingChats);
+  const user = useAppSelector(selectUser);
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
