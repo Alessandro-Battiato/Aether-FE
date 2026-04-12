@@ -53,12 +53,18 @@ const BROKEN_PREFIXES = [
   'meta-llama/',
   'nousresearch/',
 ];
+
+const BROKEN_MODEL_IDS = new Set([
+  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+]);
 const GPT_4O_MINI_ID = 'openai/gpt-4o-mini';
 
-/** Filter broken providers out of a raw server model list. */
+/** Filter broken providers and specific broken model IDs out of a raw server model list. */
 function filterModels(raw: AIModel[]): AIModel[] {
   return raw.filter(
-    (m) => !BROKEN_PREFIXES.some((prefix) => m.id.startsWith(prefix))
+    (m) =>
+      !BROKEN_PREFIXES.some((prefix) => m.id.startsWith(prefix)) &&
+      !BROKEN_MODEL_IDS.has(m.id)
   );
 }
 
