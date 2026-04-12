@@ -262,9 +262,12 @@ const chatsSlice = createSlice({
           state.activeChat = null;
         }
       })
-      // fetchModels
+      // fetchModels — filter out providers that are known to be broken
       .addCase(fetchModels.fulfilled, (state, action) => {
-        state.models = action.payload;
+        const BROKEN_PREFIXES = ['minimax/', 'google/'];
+        state.models = action.payload.filter(
+          (m) => !BROKEN_PREFIXES.some((prefix) => m.id.startsWith(prefix))
+        );
       });
   },
 });

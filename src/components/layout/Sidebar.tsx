@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -77,7 +78,10 @@ export default function Sidebar() {
   };
 
   const confirmDelete = () => {
-    if (deletingChatId) dispatch(deleteChat(deletingChatId));
+    if (deletingChatId) {
+      dispatch(deleteChat(deletingChatId));
+      toast.success('Chat deleted');
+    }
     setDeletingChatId(null);
   };
 
@@ -90,6 +94,7 @@ export default function Sidebar() {
   const handleRenameSubmit = (chatId: string) => {
     if (renameValue.trim()) {
       dispatch(updateChat({ chatId, title: renameValue.trim() }));
+      toast.success('Chat renamed');
     }
     setRenamingId(null);
   };
@@ -171,7 +176,7 @@ export default function Sidebar() {
       <Separator />
 
       {/* Chat List */}
-      <ScrollArea className="flex-1 px-2 py-2">
+      <ScrollArea className="flex-1 min-h-0 overflow-hidden px-2 py-2">
         {isLoadingChats ? (
           <div className="space-y-1">
             {[...Array(5)].map((_, i) => (

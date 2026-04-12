@@ -36,7 +36,13 @@ export default function ModelSelector() {
 
   const currentModelId = activeChat.model;
   const currentModel = models.find((m) => m.id === currentModelId);
-  const displayName = currentModel ? modelDisplayName(currentModel) : (currentModelId.split('/').pop() ?? currentModelId);
+  // Synthetic fallback so the current model is always visible even when the
+  // server doesn't return it in the models list (e.g. openai/gpt-4o-mini).
+  const effectiveCurrentModel = currentModel ?? {
+    id: currentModelId,
+    name: currentModelId.split('/').pop() ?? currentModelId,
+  };
+  const displayName = modelDisplayName(effectiveCurrentModel);
 
   const freeModels = models.filter(isFreeModel);
 
@@ -62,16 +68,16 @@ export default function ModelSelector() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="center" className="w-64 max-h-80 overflow-y-auto">
-        {/* Current model at the top when it's not free */}
-        {!currentIsFree && currentModel && (
+        {/* Current model at the top when it's not in the free list */}
+        {!currentIsFree && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel>Current model</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => handleSelect(currentModel.id)}
+                onClick={() => handleSelect(effectiveCurrentModel.id)}
                 className="flex flex-col items-start gap-0.5 cursor-pointer"
               >
-                <span className="font-medium text-sm">{modelDisplayName(currentModel)}</span>
+                <span className="font-medium text-sm">{modelDisplayName(effectiveCurrentModel)}</span>
                 <span className="flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
                   <AlertTriangle className="w-3 h-3" />
                   Requires credits

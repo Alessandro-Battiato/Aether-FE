@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
@@ -16,6 +16,15 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1';
 export function useStream() {
   const dispatch = useAppDispatch();
   const { activeChatId } = useAppSelector((s) => s.chats);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cancelStream = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    dispatch(setIsStreaming(false));
+  }, [dispatch]);
 
   const sendStreamMessage = useCallback(
     async (content: string) => {
@@ -33,6 +42,9 @@ export function useStream() {
       dispatch(addOptimisticUserMessage(optimisticMsg));
       dispatch(setIsStreaming(true));
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
         const response = await fetch(
           `${API_BASE}/chats/${activeChatId}/messages/stream`,
@@ -41,6 +53,7 @@ export function useStream() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content }),
             credentials: 'include',
+            signal: controller.signal,
           }
         );
 
@@ -136,14 +149,17 @@ export function useStream() {
         dispatch(silentRefreshActiveChat(activeChatId));
         dispatch(silentRefreshChats());
       } catch (err) {
+        // Ignore intentional user cancellations
+        if (err instanceof Error && err.name === 'AbortError') return;
         const msg = err instanceof Error ? err.message : 'Unexpected error';
         toast.error('Message failed', { description: msg });
       } finally {
+        abortControllerRef.current = null;
         dispatch(setIsStreaming(false));
       }
     },
     [activeChatId, dispatch]
   );
 
-  return { sendStreamMessage };
+  return { sendStreamMessage, cancelStream };
 }

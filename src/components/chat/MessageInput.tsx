@@ -7,11 +7,12 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   onSend: (content: string) => void;
+  onStop: () => void;
   isDisabled: boolean;
   isStreaming: boolean;
 }
 
-export default function MessageInput({ onSend, isDisabled, isStreaming }: Props) {
+export default function MessageInput({ onSend, onStop, isDisabled, isStreaming }: Props) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,7 +67,7 @@ export default function MessageInput({ onSend, isDisabled, isStreaming }: Props)
               size="icon"
               variant={canSend || isStreaming ? 'default' : 'secondary'}
               className="h-8 w-8 rounded-xl flex-shrink-0 transition-all"
-              onClick={isStreaming ? undefined : handleSend}
+              onClick={isStreaming ? onStop : handleSend}
               disabled={!canSend && !isStreaming}
             >
               {isStreaming ? (

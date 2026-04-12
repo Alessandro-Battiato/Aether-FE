@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,11 +22,23 @@ export default function MessageList({
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Delay the skeleton so it only shows for slow connections (> 400 ms).
+  // Fast chat switches never flash the skeleton at all.
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+    const id = setTimeout(() => setShowSkeleton(true), 400);
+    return () => clearTimeout(id);
+  }, [isLoading]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <div className="flex-1 p-6 space-y-6">
         {[...Array(3)].map((_, i) => (
@@ -65,7 +77,7 @@ export default function MessageList({
   }
 
   return (
-    <ScrollArea className="flex-1">
+    <ScrollArea className="flex-1 min-h-0 overflow-hidden">
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (

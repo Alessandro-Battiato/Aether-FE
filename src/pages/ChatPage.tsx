@@ -22,7 +22,7 @@ export default function ChatPage() {
     streamingContent,
   } = useAppSelector((s) => s.chats);
 
-  const { sendStreamMessage } = useStream();
+  const { sendStreamMessage, cancelStream } = useStream();
 
   // Update tab title: "Aether | <chat title>" when a chat is active
   usePageTitle(activeChat?.title ?? undefined);
@@ -65,6 +65,7 @@ export default function ChatPage() {
 
                 <MessageInput
                   onSend={handleSend}
+                  onStop={cancelStream}
                   isDisabled={isLoadingMessages}
                   isStreaming={isStreaming}
                 />
