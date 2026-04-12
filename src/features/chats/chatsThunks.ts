@@ -93,7 +93,7 @@ export const silentRefreshActiveChat = createAsyncThunk(
   }
 );
 
-// ─── Models (paginated, limit 10) ─────────────────────────────────────────────
+// ─── Models (paginated, limit 10, free only) ──────────────────────────────────
 
 interface ModelsPayload {
   models: AIModel[];
@@ -101,38 +101,24 @@ interface ModelsPayload {
   totalPages: number;
 }
 
-/** Initial fetch — replaces the models list. */
+/**
+ * Fetch a page of free models from the server.
+ * Pass page=1 for the initial load (replaces the list); page>1 appends.
+ * The server filters for free models so the FE receives only usable options.
+ */
 export const fetchModels = createAsyncThunk(
   'chats/fetchModels',
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await api.get<{
-        status: string;
-        data: { models: AIModel[]; page: number; totalPages: number };
-      }>('/chats/models?limit=10&page=1');
-      const { models, page, totalPages } = res.data.data;
-      return { models, page, totalPages } satisfies ModelsPayload;
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to load models');
-    }
-  }
-);
-
-/** Load-more fetch — appends to the models list. */
-export const fetchMoreModels = createAsyncThunk(
-  'chats/fetchMoreModels',
   async (page: number, { rejectWithValue }) => {
     try {
       const res = await api.get<{
         status: string;
         data: { models: AIModel[]; page: number; totalPages: number };
-      }>(`/chats/models?limit=10&page=${page}`);
+      }>(`/chats/models?limit=10&page=${page}&free=true`);
       const { models, totalPages } = res.data.data;
       return { models, page, totalPages } satisfies ModelsPayload;
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      return rejectWithValue(error.response?.data?.message ?? 'Failed to load more models');
+      return rejectWithValue(error.response?.data?.message ?? 'Failed to load models');
     }
   }
 );

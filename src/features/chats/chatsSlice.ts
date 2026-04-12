@@ -9,7 +9,6 @@ import {
   updateChat,
   deleteChat,
   fetchModels,
-  fetchMoreModels,
 } from './chatsThunks';
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -190,24 +189,21 @@ const chatsSlice = createSlice({
           state.activeChat = null;
         }
       })
-      // fetchModels — initial load, replaces list
+      // fetchModels — page 1 replaces the list, page > 1 appends
       .addCase(fetchModels.pending, (state) => { state.isLoadingModels = true; })
       .addCase(fetchModels.fulfilled, (state, action) => {
         state.isLoadingModels = false;
-        state.models = ensureGpt4oMini(filterModels(action.payload.models));
-        state.modelsPage = action.payload.page;
-        state.modelsTotalPages = action.payload.totalPages;
+        const { models, page, totalPages } = action.payload;
+        const filtered = filterModels(models);
+        if (page === 1) {
+          state.models = ensureGpt4oMini(filtered);
+        } else {
+          state.models = [...state.models, ...filtered];
+        }
+        state.modelsPage = page;
+        state.modelsTotalPages = totalPages;
       })
-      .addCase(fetchModels.rejected, (state) => { state.isLoadingModels = false; })
-      // fetchMoreModels — appends to list
-      .addCase(fetchMoreModels.pending, (state) => { state.isLoadingModels = true; })
-      .addCase(fetchMoreModels.fulfilled, (state, action) => {
-        state.isLoadingModels = false;
-        state.models = [...state.models, ...filterModels(action.payload.models)];
-        state.modelsPage = action.payload.page;
-        state.modelsTotalPages = action.payload.totalPages;
-      })
-      .addCase(fetchMoreModels.rejected, (state) => { state.isLoadingModels = false; });
+      .addCase(fetchModels.rejected, (state) => { state.isLoadingModels = false; });
   },
 });
 

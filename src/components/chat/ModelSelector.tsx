@@ -10,8 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { updateChat } from '@/features/chats/chatsThunks';
-import { fetchModels, fetchMoreModels } from '@/features/chats/chatsThunks';
+import { updateChat, fetchModels } from '@/features/chats/chatsThunks';
 import {
   selectActiveChat,
   selectModels,
@@ -42,7 +41,7 @@ export default function ModelSelector() {
 
   // Trigger the first fetch only once (modelsPage stays 0 until page 1 lands)
   useEffect(() => {
-    if (modelsPage === 0) dispatch(fetchModels());
+    if (modelsPage === 0) dispatch(fetchModels(1));
   }, [dispatch, modelsPage]);
 
   if (!activeChat) return null;
@@ -113,21 +112,31 @@ export default function ModelSelector() {
           )}
         </DropdownMenuGroup>
 
-        {/* Load more — only shown while there are still pages to fetch */}
+        {/* Load more — plain button so Base UI's item-activation-closes-menu
+            logic never fires; the dropdown stays open while paginating */}
         {hasMoreModels && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => dispatch(fetchMoreModels(modelsPage + 1))}
-              disabled={isLoadingModels}
-              className="justify-center gap-1.5 text-xs text-muted-foreground cursor-pointer"
-            >
-              {isLoadingModels ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                'Load more'
-              )}
-            </DropdownMenuItem>
+            <div className="px-1 py-1">
+              <button
+                type="button"
+                disabled={isLoadingModels}
+                onClick={() => dispatch(fetchModels(modelsPage + 1))}
+                className={cn(
+                  'w-full flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5',
+                  'text-xs text-muted-foreground transition-colors',
+                  'hover:bg-accent hover:text-accent-foreground',
+                  'disabled:pointer-events-none disabled:opacity-50',
+                  'outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
+                )}
+              >
+                {isLoadingModels ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  'Load more'
+                )}
+              </button>
+            </div>
           </>
         )}
       </DropdownMenuContent>
