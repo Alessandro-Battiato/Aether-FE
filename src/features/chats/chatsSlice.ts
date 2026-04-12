@@ -45,7 +45,14 @@ const initialState: ChatsState = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const BROKEN_PREFIXES = ['minimax/', 'google/'];
+const BROKEN_PREFIXES = [
+  'minimax/',
+  'google/',
+  'qwen/',
+  'venice/',
+  'meta-llama/',
+  'nousresearch/',
+];
 const GPT_4O_MINI_ID = 'openai/gpt-4o-mini';
 
 /** Filter broken providers out of a raw server model list. */

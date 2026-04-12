@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ChevronDown, AlertTriangle, Loader2 } from 'lucide-react';
+import { ChevronDown, AlertTriangle, Loader2, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,15 +100,22 @@ export default function ModelSelector() {
               Loading…
             </div>
           ) : (
-            freeModels.map((model) => (
-              <DropdownMenuItem
-                key={model.id}
-                onClick={() => handleSelect(model.id)}
-                className="flex flex-col items-start gap-0.5 cursor-pointer"
-              >
-                <span className="font-medium text-sm">{modelDisplayName(model)}</span>
-              </DropdownMenuItem>
-            ))
+            freeModels.map((model) => {
+              const isSelected = model.id === currentModelId;
+              return (
+                <DropdownMenuItem
+                  key={model.id}
+                  onClick={() => handleSelect(model.id)}
+                  className={cn(
+                    'flex items-center gap-2 cursor-pointer',
+                    isSelected && 'text-primary font-semibold'
+                  )}
+                >
+                  <span className="flex-1 text-sm">{modelDisplayName(model)}</span>
+                  {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                </DropdownMenuItem>
+              );
+            })
           )}
         </DropdownMenuGroup>
 
