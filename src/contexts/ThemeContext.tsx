@@ -1,19 +1,11 @@
 import {
-  createContext,
   useCallback,
   useEffect,
   useState,
 } from 'react';
+import { ThemeContext } from '@/hooks/useTheme';
 
 export type Theme = 'light' | 'dark' | 'system';
-
-export interface ThemeContextValue {
-  theme: Theme;
-  resolvedTheme: 'light' | 'dark';
-  setTheme: (theme: Theme) => void;
-}
-
-export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = 'aether-theme';
 
@@ -37,12 +29,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const resolvedTheme: 'light' | 'dark' =
     theme === 'system' ? getSystemTheme() : theme;
 
-  // Apply on mount and whenever resolved changes
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme]);
 
-  // Listen for OS preference changes when theme === 'system'
   useEffect(() => {
     if (theme !== 'system') return;
 

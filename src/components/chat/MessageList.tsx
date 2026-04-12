@@ -24,14 +24,16 @@ export default function MessageList({
 
   // Delay the skeleton so it only shows for slow connections (> 400 ms).
   // Fast chat switches never flash the skeleton at all.
+  // The reset happens in the cleanup so we never call setState synchronously
+  // inside the effect body (avoids react-hooks/set-state-in-effect warning).
   const [showSkeleton, setShowSkeleton] = useState(false);
   useEffect(() => {
-    if (!isLoading) {
-      setShowSkeleton(false);
-      return;
-    }
+    if (!isLoading) return;
     const id = setTimeout(() => setShowSkeleton(true), 400);
-    return () => clearTimeout(id);
+    return () => {
+      clearTimeout(id);
+      setShowSkeleton(false);
+    };
   }, [isLoading]);
 
   useEffect(() => {

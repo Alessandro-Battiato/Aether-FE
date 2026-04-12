@@ -262,12 +262,24 @@ const chatsSlice = createSlice({
           state.activeChat = null;
         }
       })
-      // fetchModels — filter out providers that are known to be broken
+      // fetchModels — filter broken providers, then ensure the server default
+      // (openai/gpt-4o-mini) is always present as a selectable free model even
+      // when the models endpoint doesn't return it.
       .addCase(fetchModels.fulfilled, (state, action) => {
         const BROKEN_PREFIXES = ['minimax/', 'google/'];
-        state.models = action.payload.filter(
+        const filtered = action.payload.filter(
           (m) => !BROKEN_PREFIXES.some((prefix) => m.id.startsWith(prefix))
         );
+        const GPT_4O_MINI_ID = 'openai/gpt-4o-mini';
+        if (!filtered.some((m) => m.id === GPT_4O_MINI_ID)) {
+          filtered.unshift({
+            id: GPT_4O_MINI_ID,
+            name: 'GPT-4o Mini',
+            context_length: 128000,
+            pricing: { prompt: '0', completion: '0' },
+          });
+        }
+        state.models = filtered;
       });
   },
 });
