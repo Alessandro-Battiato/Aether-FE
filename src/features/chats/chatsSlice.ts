@@ -275,7 +275,6 @@ const chatsSlice = createSlice({
           filtered.unshift({
             id: GPT_4O_MINI_ID,
             name: 'GPT-4o Mini',
-            context_length: 128000,
             pricing: { prompt: '0', completion: '0' },
           });
         }
