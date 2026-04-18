@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   appendStreamChunk,
@@ -19,10 +20,8 @@ export function useStream() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const cancelStream = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     dispatch(setIsStreaming(false));
   }, [dispatch]);
 
@@ -31,7 +30,6 @@ export function useStream() {
       if (!activeChatId) return;
 
       const optimisticId = `optimistic-${Date.now()}`;
-
       const optimisticMsg: Message = {
         id: optimisticId,
         role: 'user',
@@ -39,91 +37,61 @@ export function useStream() {
         chatId: activeChatId,
         createdAt: new Date().toISOString(),
       };
+
       dispatch(addOptimisticUserMessage(optimisticMsg));
       dispatch(setIsStreaming(true));
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
+      let finalUserMessageId = '';
+      let finalAssistantMessageId = '';
+      let fullContent = '';
+      let streamError: string | null = null;
+
       try {
-        const response = await fetch(
-          `${API_BASE}/chats/${activeChatId}/messages/stream`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content }),
-            credentials: 'include',
-            signal: controller.signal,
-          }
-        );
-
-        if (!response.ok) {
-          const errBody = await response.json().catch(() => ({})) as { message?: string };
-          throw new Error(errBody.message ?? `Request failed (${response.status})`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error('No response body');
-
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let finalUserMessageId = '';
-        let finalAssistantMessageId = '';
-        let fullContent = '';
-        let streamError: string | null = null;
-
-        outer: while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
-
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const jsonStr = line.slice(6).trim();
-            if (!jsonStr) continue;
-
-            try {
-              const parsed = JSON.parse(jsonStr) as {
-                delta?: string;
-                done?: boolean;
-                messageId?: string;
-                userMessageId?: string;
-                error?: string;
-              };
-
-              // Server-sent error (e.g. 402 insufficient credits)
-              if (parsed.error) {
-                streamError = parsed.error;
-                reader.cancel();
-                break outer;
-              }
-
-              if (parsed.delta) {
-                dispatch(appendStreamChunk(parsed.delta));
-                fullContent += parsed.delta;
-              }
-
-              if (parsed.done) {
-                finalAssistantMessageId = parsed.messageId ?? '';
-                finalUserMessageId = parsed.userMessageId ?? '';
-              }
-            } catch {
-              // skip malformed line
+        await fetchEventSource(`${API_BASE}/chats/${activeChatId}/messages/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+          credentials: 'include',
+          signal: controller.signal,
+          async onopen(response) {
+            if (!response.ok) {
+              const errBody = await response.json().catch(() => ({})) as { message?: string };
+              throw new Error(errBody.message ?? `Request failed (${response.status})`);
             }
-          }
-        }
+          },
+          onmessage(event) {
+            const parsed = JSON.parse(event.data) as {
+              delta?: string;
+              done?: boolean;
+              messageId?: string;
+              userMessageId?: string;
+              error?: string;
+            };
 
-        if (streamError) {
-          // Surface the error as a toast; strip leading status-code prefix if present
-          const clean = streamError.replace(/^\d{3}\s*/, '');
-          toast.error('Message failed', { description: clean });
-          return;
-        }
+            if (parsed.error) {
+              streamError = parsed.error;
+              controller.abort();
+              return;
+            }
 
-        // Swap optimistic message for real IDs and append assistant reply
+            if (parsed.delta) {
+              dispatch(appendStreamChunk(parsed.delta));
+              fullContent += parsed.delta;
+            }
+
+            if (parsed.done) {
+              finalAssistantMessageId = parsed.messageId ?? '';
+              finalUserMessageId = parsed.userMessageId ?? '';
+            }
+          },
+          onerror(err) {
+            throw err; // rethrow to prevent automatic reconnection
+          },
+        });
+
         dispatch(
           finaliseStreamedMessages({
             optimisticId,
@@ -149,8 +117,15 @@ export function useStream() {
         dispatch(silentRefreshActiveChat(activeChatId));
         dispatch(silentRefreshChats());
       } catch (err) {
-        // Ignore intentional user cancellations
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === 'AbortError') {
+          // Server-sent error caused the abort — surface it as a toast.
+          if (streamError) {
+            const clean = streamError.replace(/^\d{3}\s*/, '');
+            toast.error('Message failed', { description: clean });
+          }
+          // Intentional user cancellation → ignore silently.
+          return;
+        }
         const msg = err instanceof Error ? err.message : 'Unexpected error';
         toast.error('Message failed', { description: msg });
       } finally {
