@@ -47,7 +47,6 @@ export function useStream() {
       let finalUserMessageId = '';
       let finalAssistantMessageId = '';
       let fullContent = '';
-      let streamError: string | null = null;
 
       try {
         await fetchEventSource(`${API_BASE}/chats/${activeChatId}/messages/stream`, {
@@ -72,7 +71,11 @@ export function useStream() {
             };
 
             if (parsed.error) {
-              streamError = parsed.error;
+              // Surface the server error immediately, then abort the stream.
+              // The resulting AbortError is caught below and silently ignored
+              // since the toast is already shown here.
+              const clean = parsed.error.replace(/^\d{3}\s*/, '');
+              toast.error('Message failed', { description: clean });
               controller.abort();
               return;
             }
@@ -117,15 +120,9 @@ export function useStream() {
         dispatch(silentRefreshActiveChat(activeChatId));
         dispatch(silentRefreshChats());
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          // Server-sent error caused the abort — surface it as a toast.
-          if (streamError) {
-            const clean = streamError.replace(/^\d{3}\s*/, '');
-            toast.error('Message failed', { description: clean });
-          }
-          // Intentional user cancellation → ignore silently.
-          return;
-        }
+        // AbortError = either user pressed cancel, or onmessage showed a server-error
+        // toast and called controller.abort(). Either way, nothing left to do.
+        if (err instanceof Error && err.name === 'AbortError') return;
         const msg = err instanceof Error ? err.message : 'Unexpected error';
         toast.error('Message failed', { description: msg });
       } finally {
