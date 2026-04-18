@@ -124,6 +124,13 @@ const chatsSlice = createSlice({
         ];
       }
     },
+    removeMessage(state, action: PayloadAction<string>) {
+      if (state.activeChat) {
+        state.activeChat.messages = (state.activeChat.messages ?? []).filter(
+          (m) => m.id !== action.payload
+        );
+      }
+    },
     clearError(state) {
       state.error = null;
     },
@@ -226,6 +233,7 @@ export const {
   setIsStreaming,
   finaliseStreamedMessages,
   addOptimisticUserMessage,
+  removeMessage,
   clearError,
   resetChats,
 } = chatsSlice.actions;

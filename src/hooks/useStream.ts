@@ -7,6 +7,7 @@ import {
   setIsStreaming,
   finaliseStreamedMessages,
   addOptimisticUserMessage,
+  removeMessage,
 } from '@/features/chats/chatsSlice';
 import { silentRefreshChats, silentRefreshActiveChat } from '@/features/chats/chatsThunks';
 import { selectActiveChatId } from '@/features/chats/chatsSelectors';
@@ -95,34 +96,47 @@ export function useStream() {
           },
         });
 
-        dispatch(
-          finaliseStreamedMessages({
-            optimisticId,
-            userMessage: {
-              id: finalUserMessageId,
-              role: 'user',
-              content,
-              chatId: activeChatId,
-              createdAt: new Date().toISOString(),
-            },
-            assistantMessage: {
-              id: finalAssistantMessageId,
-              role: 'assistant',
-              content: fullContent,
-              chatId: activeChatId,
-              createdAt: new Date().toISOString(),
-            },
-          })
-        );
+        // Only finalise if the server sent the `done` event with real IDs.
+        // If the stream ended before `done` arrived (race: user clicked cancel
+        // just as the last byte landed), skip finalise and clean up the optimistic
+        // instead — otherwise an empty assistant bubble would be left behind.
+        if (finalUserMessageId && finalAssistantMessageId) {
+          dispatch(
+            finaliseStreamedMessages({
+              optimisticId,
+              userMessage: {
+                id: finalUserMessageId,
+                role: 'user',
+                content,
+                chatId: activeChatId,
+                createdAt: new Date().toISOString(),
+              },
+              assistantMessage: {
+                id: finalAssistantMessageId,
+                role: 'assistant',
+                content: fullContent,
+                chatId: activeChatId,
+                createdAt: new Date().toISOString(),
+              },
+            })
+          );
 
-        // Silent refresh to pick up server-generated chat title and sync timestamps.
-        // Uses dedicated thunks that do NOT touch loading flags → no skeleton flash.
-        dispatch(silentRefreshActiveChat(activeChatId));
-        dispatch(silentRefreshChats());
+          // Silent refresh to pick up server-generated chat title and sync timestamps.
+          // Uses dedicated thunks that do NOT touch loading flags → no skeleton flash.
+          dispatch(silentRefreshActiveChat(activeChatId));
+          dispatch(silentRefreshChats());
+        } else {
+          // `done` never arrived — stream was cut before completion. Remove the
+          // orphaned optimistic message so nothing lingers in the UI.
+          dispatch(removeMessage(optimisticId));
+        }
       } catch (err) {
-        // AbortError = either user pressed cancel, or onmessage showed a server-error
-        // toast and called controller.abort(). Either way, nothing left to do.
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === 'AbortError') {
+          // User cancelled (or onmessage already showed a server-error toast and
+          // aborted). Remove the orphaned optimistic message so it doesn't linger.
+          dispatch(removeMessage(optimisticId));
+          return;
+        }
         const msg = err instanceof Error ? err.message : 'Unexpected error';
         toast.error('Message failed', { description: msg });
       } finally {
