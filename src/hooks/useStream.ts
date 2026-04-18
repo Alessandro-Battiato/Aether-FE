@@ -7,9 +7,8 @@ import {
   setIsStreaming,
   finaliseStreamedMessages,
   addOptimisticUserMessage,
-  removeMessage,
 } from '@/features/chats/chatsSlice';
-import { silentRefreshChats, silentRefreshActiveChat } from '@/features/chats/chatsThunks';
+import { silentRefreshChats, silentRefreshActiveChat, silentRefreshMessages } from '@/features/chats/chatsThunks';
 import { selectActiveChatId } from '@/features/chats/chatsSelectors';
 import type { Message } from '@/types';
 
@@ -126,15 +125,16 @@ export function useStream() {
           dispatch(silentRefreshActiveChat(activeChatId));
           dispatch(silentRefreshChats());
         } else {
-          // `done` never arrived — stream was cut before completion. Remove the
-          // orphaned optimistic message so nothing lingers in the UI.
-          dispatch(removeMessage(optimisticId));
+          // `done` never arrived — stream resolved without completing (race condition).
+          // Sync from server to replace the orphaned optimistic with the real messages.
+          dispatch(silentRefreshMessages(activeChatId));
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
-          // User cancelled (or onmessage already showed a server-error toast and
-          // aborted). Remove the orphaned optimistic message so it doesn't linger.
-          dispatch(removeMessage(optimisticId));
+          // User cancelled (or onmessage showed a server-error toast and aborted).
+          // Replace the optimistic message with the real persisted user message by
+          // fetching the server state — no loading flags, no skeleton flash.
+          dispatch(silentRefreshMessages(activeChatId));
           return;
         }
         const msg = err instanceof Error ? err.message : 'Unexpected error';

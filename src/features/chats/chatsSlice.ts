@@ -5,6 +5,7 @@ import {
   fetchChat,
   silentRefreshChats,
   silentRefreshActiveChat,
+  silentRefreshMessages,
   createChat,
   updateChat,
   deleteChat,
@@ -172,6 +173,12 @@ const chatsSlice = createSlice({
             existing.title = updated.title;
             existing.updatedAt = updated.updatedAt;
           }
+        }
+      })
+      // silentRefreshMessages — replaces messages only, no loading flags
+      .addCase(silentRefreshMessages.fulfilled, (state, action) => {
+        if (state.activeChat?.id === action.payload.id) {
+          state.activeChat.messages = action.payload.messages ?? [];
         }
       })
       // silentRefreshActiveChat

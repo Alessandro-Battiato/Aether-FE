@@ -93,6 +93,20 @@ export const silentRefreshActiveChat = createAsyncThunk(
   }
 );
 
+/**
+ * Fetches the full chat and replaces only activeChat.messages with the server
+ * truth — no loading flags touched, no skeleton flash.
+ * Used after a cancelled stream to swap the orphaned optimistic message for the
+ * real persisted user message without triggering a full re-render.
+ */
+export const silentRefreshMessages = createAsyncThunk(
+  'chats/silentRefreshMessages',
+  async (chatId: string) => {
+    const res = await api.get<{ status: string; data: { chat: Chat } }>(`/chats/${chatId}`);
+    return res.data.data.chat;
+  }
+);
+
 // ─── Models (paginated, limit 10, free only) ──────────────────────────────────
 
 interface ModelsPayload {
