@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Plus } from 'lucide-react';
+import { MessageSquare, Menu, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Sidebar from '@/components/layout/Sidebar';
 import ChatHeader from '@/components/layout/ChatHeader';
@@ -23,6 +23,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function ChatPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { chatId } = useParams<{ chatId: string }>();
   const activeChat = useAppSelector(selectActiveChat);
   const activeChatId = useAppSelector(selectActiveChatId);
@@ -31,6 +32,8 @@ export default function ChatPage() {
   const streamingContent = useAppSelector(selectStreamingContent);
 
   const { sendStreamMessage, cancelStream } = useStream();
+
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Update tab title: "Aether | <chat title>" when a chat is active
   usePageTitle(activeChat?.title ?? undefined);
@@ -54,12 +57,20 @@ export default function ChatPage() {
     sendStreamMessage(content);
   };
 
+  // Used by the empty-state "New chat" button — must navigate so the URL reflects the new chat
+  const handleCreateChat = async () => {
+    const result = await dispatch(createChat());
+    if (createChat.fulfilled.match(result)) {
+      navigate(`/chat/${result.payload.id}`);
+    }
+  };
+
   const messages = activeChat?.messages ?? [];
 
   return (
     <TooltipProvider delay={300}>
       <div className="flex h-screen bg-background overflow-hidden">
-        <Sidebar />
+        <Sidebar isOpen={isMobileOpen} onClose={() => setIsMobileOpen(false)} />
 
         <div className="flex flex-col flex-1 min-w-0">
           <AnimatePresence mode="wait">
@@ -72,7 +83,7 @@ export default function ChatPage() {
                 transition={{ duration: 0.2 }}
                 className="flex flex-col flex-1 min-h-0"
               >
-                <ChatHeader />
+                <ChatHeader onMobileMenuOpen={() => setIsMobileOpen(true)} />
 
                 <MessageList
                   messages={messages}
@@ -95,29 +106,40 @@ export default function ChatPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="flex-1 flex flex-col items-center justify-center gap-6 p-6"
+                className="flex-1 flex flex-col"
               >
-                <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center">
-                  <MessageSquare className="w-8 h-8 text-primary-foreground" />
+                {/* Mobile-only top bar — visible when no chat is open and the sidebar is a drawer */}
+                <div className="md:hidden flex items-center px-3 py-2.5 border-b bg-background/80 backdrop-blur-sm">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setIsMobileOpen(true)}
+                    aria-label="Open sidebar"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </Button>
                 </div>
 
-                <div className="text-center">
-                  <h1 className="text-2xl font-semibold tracking-tight mb-2">
-                    What can I help you with?
-                  </h1>
-                  <p className="text-muted-foreground">
-                    Start a new conversation to get started
-                  </p>
-                </div>
+                <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6">
+                  <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center">
+                    <MessageSquare className="w-8 h-8 text-primary-foreground" />
+                  </div>
 
-                <Button
-                  size="lg"
-                  className="gap-2"
-                  onClick={() => dispatch(createChat())}
-                >
-                  <Plus className="w-4 h-4" />
-                  New chat
-                </Button>
+                  <div className="text-center">
+                    <h1 className="text-2xl font-semibold tracking-tight mb-2">
+                      What can I help you with?
+                    </h1>
+                    <p className="text-muted-foreground">
+                      Start a new conversation to get started
+                    </p>
+                  </div>
+
+                  <Button size="lg" className="gap-2" onClick={handleCreateChat}>
+                    <Plus className="w-4 h-4" />
+                    New chat
+                  </Button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

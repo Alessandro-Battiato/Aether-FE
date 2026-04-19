@@ -48,9 +48,15 @@ import { createChat, deleteChat, updateChat } from '@/features/chats/chatsThunks
 import { logout } from '@/features/auth/authThunks';
 import { selectChats, selectActiveChatId, selectIsLoadingChats } from '@/features/chats/chatsSelectors';
 import { selectUser } from '@/features/auth/authSelectors';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Chat } from '@/types';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const chats = useAppSelector(selectChats);
@@ -58,20 +64,28 @@ export default function Sidebar() {
   const isLoadingChats = useAppSelector(selectIsLoadingChats);
   const user = useAppSelector(selectUser);
 
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const isMobile = !isDesktop;
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
+  // On mobile the drawer is always fully expanded
+  const effectiveCollapsed = isMobile ? false : isCollapsed;
+
   const handleNewChat = async () => {
     const result = await dispatch(createChat());
     if (createChat.fulfilled.match(result)) {
       navigate(`/chat/${result.payload.id}`);
+      onClose();
     }
   };
 
   const handleSelectChat = (chat: Chat) => {
     navigate(`/chat/${chat.id}`);
+    onClose();
   };
 
   const handleDeleteClick = (e: React.MouseEvent, chatId: string) => {
@@ -117,16 +131,15 @@ export default function Sidebar() {
     .join('')
     .toUpperCase();
 
-  return (
-    <motion.aside
-      animate={{ width: isCollapsed ? 60 : 260 }}
-      transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="flex flex-col h-full border-r bg-sidebar overflow-hidden flex-shrink-0"
-    >
+  // ─── Shared sidebar content ─────────────────────────────────────────────────
+  // Rendered inside both the desktop motion.aside and the mobile drawer.
+
+  const sidebarContent = (
+    <>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3 gap-2">
         <AnimatePresence>
-          {!isCollapsed && (
+          {!effectiveCollapsed && (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -142,23 +155,35 @@ export default function Sidebar() {
           )}
         </AnimatePresence>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 flex-shrink-0"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
-        </Button>
+        {isMobile ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 flex-shrink-0"
+            onClick={onClose}
+            aria-label="Close sidebar"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 flex-shrink-0"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </Button>
+        )}
       </div>
 
       {/* New Chat Button */}
       <div className="px-2 pb-2">
-        {isCollapsed ? (
+        {effectiveCollapsed ? (
           <Tooltip>
             <TooltipTrigger
               className="inline-flex w-full items-center justify-center h-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -191,7 +216,7 @@ export default function Sidebar() {
             ))}
           </div>
         ) : chats.length === 0 ? (
-          !isCollapsed && (
+          !effectiveCollapsed && (
             <p className="text-xs text-muted-foreground text-center py-4 px-2">
               No chats yet. Start a new conversation.
             </p>
@@ -208,7 +233,7 @@ export default function Sidebar() {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {renamingId === chat.id && !isCollapsed ? (
+                  {renamingId === chat.id && !effectiveCollapsed ? (
                     <div className="flex items-center gap-1 px-1 py-1">
                       <Input
                         value={renameValue}
@@ -237,7 +262,7 @@ export default function Sidebar() {
                         <X className="w-3 h-3" />
                       </Button>
                     </div>
-                  ) : isCollapsed ? (
+                  ) : effectiveCollapsed ? (
                     <Tooltip>
                       <TooltipTrigger
                         className={cn(
@@ -297,8 +322,8 @@ export default function Sidebar() {
       <Separator />
 
       {/* Theme Toggle */}
-      <div className={cn('px-3 py-2 flex', isCollapsed ? 'justify-center' : 'justify-start')}>
-        <ThemeToggle variant={isCollapsed ? 'compact' : 'full'} />
+      <div className={cn('px-3 py-2 flex', effectiveCollapsed ? 'justify-center' : 'justify-start')}>
+        <ThemeToggle variant={effectiveCollapsed ? 'compact' : 'full'} />
       </div>
 
       <Separator />
@@ -310,7 +335,7 @@ export default function Sidebar() {
             className={cn(
               'flex w-full items-center rounded-md py-2 transition-colors',
               'hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              isCollapsed ? 'justify-center px-0' : 'gap-2 px-2'
+              effectiveCollapsed ? 'justify-center px-0' : 'gap-2 px-2'
             )}
           >
             <Avatar className="h-7 w-7 flex-shrink-0">
@@ -320,7 +345,7 @@ export default function Sidebar() {
             </Avatar>
 
             <AnimatePresence>
-              {!isCollapsed && (
+              {!effectiveCollapsed && (
                 <motion.div
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: 'auto' }}
@@ -356,7 +381,7 @@ export default function Sidebar() {
         </DropdownMenu>
       </div>
 
-      {/* Delete confirmation dialog — rendered outside the scrollable area */}
+      {/* Delete confirmation dialog */}
       <AlertDialog
         open={deletingChatId !== null}
         onOpenChange={(open) => { if (!open) setDeletingChatId(null); }}
@@ -376,6 +401,55 @@ export default function Sidebar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  // ─── Mobile: slide-in drawer over content ───────────────────────────────────
+
+  if (isMobile) {
+    return (
+      <>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/50"
+              onClick={onClose}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isOpen && (
+            <motion.aside
+              key="drawer"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col h-full border-r bg-sidebar overflow-hidden"
+            >
+              {sidebarContent}
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  // ─── Desktop: collapsible sidebar in normal document flow ───────────────────
+
+  return (
+    <motion.aside
+      animate={{ width: isCollapsed ? 60 : 260 }}
+      transition={{ duration: 0.25, ease: 'easeInOut' }}
+      className="flex flex-col h-full border-r bg-sidebar overflow-hidden flex-shrink-0"
+    >
+      {sidebarContent}
     </motion.aside>
   );
 }
