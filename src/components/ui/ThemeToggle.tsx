@@ -18,7 +18,12 @@ export default function ThemeToggle({ variant = 'full' }: Props) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-muted">
+    <div
+      className={cn(
+        'inline-flex gap-0.5 p-0.5 rounded-lg bg-muted',
+        variant === 'compact' ? 'flex-col items-center' : 'flex-row items-center'
+      )}
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
