@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,8 @@ import ChatHeader from '@/components/layout/ChatHeader';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { fetchChats, createChat } from '@/features/chats/chatsThunks';
+import { fetchChats, fetchChat, createChat } from '@/features/chats/chatsThunks';
+import { setActiveChatId } from '@/features/chats/chatsSlice';
 import {
   selectActiveChat,
   selectActiveChatId,
@@ -21,6 +23,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function ChatPage() {
   const dispatch = useAppDispatch();
+  const { chatId } = useParams<{ chatId: string }>();
   const activeChat = useAppSelector(selectActiveChat);
   const activeChatId = useAppSelector(selectActiveChatId);
   const isLoadingMessages = useAppSelector(selectIsLoadingMessages);
@@ -35,6 +38,16 @@ export default function ChatPage() {
   useEffect(() => {
     dispatch(fetchChats());
   }, [dispatch]);
+
+  // Sync URL param → Redux; restores the selected chat on hard refresh
+  useEffect(() => {
+    if (chatId) {
+      dispatch(setActiveChatId(chatId));
+      dispatch(fetchChat(chatId));
+    } else {
+      dispatch(setActiveChatId(null));
+    }
+  }, [chatId, dispatch]);
 
   const handleSend = (content: string) => {
     if (!activeChatId) return;

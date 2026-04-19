@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -43,8 +44,7 @@ import {
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { createChat, deleteChat, updateChat, fetchChat } from '@/features/chats/chatsThunks';
-import { setActiveChatId } from '@/features/chats/chatsSlice';
+import { createChat, deleteChat, updateChat } from '@/features/chats/chatsThunks';
 import { logout } from '@/features/auth/authThunks';
 import { selectChats, selectActiveChatId, selectIsLoadingChats } from '@/features/chats/chatsSelectors';
 import { selectUser } from '@/features/auth/authSelectors';
@@ -52,6 +52,7 @@ import type { Chat } from '@/types';
 
 export default function Sidebar() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const chats = useAppSelector(selectChats);
   const activeChatId = useAppSelector(selectActiveChatId);
   const isLoadingChats = useAppSelector(selectIsLoadingChats);
@@ -62,13 +63,15 @@ export default function Sidebar() {
   const [renameValue, setRenameValue] = useState('');
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
-  const handleNewChat = () => {
-    dispatch(createChat());
+  const handleNewChat = async () => {
+    const result = await dispatch(createChat());
+    if (createChat.fulfilled.match(result)) {
+      navigate(`/chat/${result.payload.id}`);
+    }
   };
 
   const handleSelectChat = (chat: Chat) => {
-    dispatch(setActiveChatId(chat.id));
-    dispatch(fetchChat(chat.id));
+    navigate(`/chat/${chat.id}`);
   };
 
   const handleDeleteClick = (e: React.MouseEvent, chatId: string) => {
@@ -77,9 +80,14 @@ export default function Sidebar() {
   };
 
   const confirmDelete = () => {
-    if (deletingChatId) {
-      dispatch(deleteChat(deletingChatId));
-      toast.success('Chat deleted');
+    if (!deletingChatId) { setDeletingChatId(null); return; }
+    const isActive = activeChatId === deletingChatId;
+    const remaining = chats.filter((c) => c.id !== deletingChatId);
+    dispatch(deleteChat(deletingChatId));
+    toast.success('Chat deleted');
+    if (isActive) {
+      const next = remaining[0];
+      navigate(next ? `/chat/${next.id}` : '/');
     }
     setDeletingChatId(null);
   };
