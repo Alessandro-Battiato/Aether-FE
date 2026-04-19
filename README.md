@@ -1,6 +1,6 @@
-# GPTClone — Client
+# Aether — Client
 
-React front-end for a ChatGPT-style clone. Consumes the GPTClone Server REST API and renders a fully-featured chat interface with real-time streaming, model selection, and a collapsible sidebar.
+React front-end for a ChatGPT-style clone. Consumes the Aether Server REST API and renders a fully-featured chat interface with real-time streaming, model selection, and a collapsible sidebar.
 
 ## Stack
 
@@ -30,7 +30,7 @@ React front-end for a ChatGPT-style clone. Consumes the GPTClone Server REST API
 ## Prerequisites
 
 - Node.js ≥ 20
-- GPTClone Server running (default `http://localhost:5000`)
+- Aether Server running (default `http://localhost:5000`)
 
 ## Setup
 
@@ -107,7 +107,7 @@ src/
 
 | Variable | Default | Description |
 |---|---|---|
-| `VITE_API_URL` | `http://localhost:5000/api/v1` | Base URL of the GPTClone Server API |
+| `VITE_API_URL` | `http://localhost:5000/api/v1` | Base URL of the Aether Server API |
 
 ## Architecture notes
 
